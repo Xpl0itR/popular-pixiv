@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>UwU</title>
+    <script src="script.js"></script>
+    <link rel="stylesheet" href="stylesheet.css">
+    <style>
+        .autocomplete {
+            position: absolute;
+            top: 45%;
+            left: 15%;
+        }
+        #search-box {
+            height: 3vh;
+            min-height: 20px;
+            width: 50vw;
+        }
+        #submit-button {
+            position: absolute;
+            top: 45%;
+            left: 66.5%;
+            height: 3.5vh;
+            min-height: 25px;
+            width: 100px;
+        }
+    </style>
+</head>
+<body>
+<div id="options-bar">
+    <form autocomplete="off" action="/search">
+        <div class="autocomplete">
+            <label for="search-box"></label>
+            <input id="search-box" type="text" name="word" placeholder="Enter Pixiv Image Tags" required autofocus>
+        </div>
+        <input type="submit" id="submit-button" value="Search">
+        <button type="button" class="collapse-button" id="advanced-options-button">Advanced Search Options</button>
+        <div class="collapsible" id="advanced-options">
+            <div class="radio-group">
+                <input type="radio" id="exact_match_for_tags" name="search_target" value="exact_match_for_tags">
+                <label for="exact_match_for_tags">Exact Match for Tags</label>
+                <input type="radio" id="partial_match_for_tags" name="search_target" value="partial_match_for_tags">
+                <label for="partial_match_for_tags">Partial Match for Tags</label>
+                <input type="radio" id="title_and_caption" name="search_target" value="title_and_caption">
+                <label for="title_and_caption">Title And Caption</label>
+            </div>
+            <div class="radio-group">
+                <input type="radio" id="date_desc" name="sort" value="date_desc">
+                <label for="date_desc">Date Descending</label>
+                <input type="radio" id="date_asc" name="sort" value="date_asc">
+                <label for="date_asc">Date Ascending</label>
+            </div>
+            <div class="radio-group">
+                <input type="radio" id="bookmarks" name="resort" value="bookmarks">
+                <label for="bookmarks">Bookmarks</label>
+                <input type="radio" id="views" name="resort" value="views">
+                <label for="views">Views</label>
+            </div>
+            <div class="radio-group">
+                <input type="radio" id="all_time">
+                <label for="all_time">All time</label>
+                <input type="radio" id="within_last_month" name="duration" value="within_last_month">
+                <label for="within_last_month">Within the Last Month</label>
+                <input type="radio" id="within_last_week" name="duration" value="within_last_week">
+                <label for="within_last_week">Within the Last Week</label>
+                <input type="radio" id="within_last_day" name="duration" value="within_last_day">
+                <label for="within_last_day">Within the Last Day</label>
+            </div>
+            <div>
+                <label for="start_date">Start Date</label>
+                <input type="date" id="start_date" name="start_date" min="2007-09-10">
+                <label for="end_date">End Date</label>
+                <input type="date" id="end_date" name="end_date" min="2007-09-10">
+            </div>
+            <div>
+                <label for="num">Number of results:</label>
+                <input type="number" id="num" name="num" min="30" step="30" placeholder="30" value="30">
+            </div>
+        </div>
+    </form>
+</div>
+</body>
+</html>
