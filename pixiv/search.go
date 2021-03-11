@@ -44,6 +44,7 @@ type Illust struct {
     ID             uint64     `json:"id"`
     Title          string     `json:"title"`
     ImageURLs      *ImageURLs `json:"image_urls"`
+    XRestrict      int        `json:"x_restrict"`
     TotalView      int        `json:"total_view"`
     TotalBookmarks int        `json:"total_bookmarks"`
 }

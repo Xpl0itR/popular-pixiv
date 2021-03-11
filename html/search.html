@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>UwU</title>
+    <title>Popular Pixiv</title>
     <link rel="stylesheet" href="stylesheet.css">
-    <script src="script.js"></script>
+    <script type="text/javascript" src="script.js"></script>
 </head>
 <body>
 <div id="options-bar">
@@ -56,6 +56,10 @@
                 <label for="num">Number of results:</label>
                 <input type="number" id="num" name="num" min="30" step="30" placeholder="30" value="30">
             </div>
+            <div>
+                <label for="blur_r18">Blur R-18 previews</label>
+                <input type="checkbox" id="blur_r18" name="blur_r18" value="true">
+            </div>
         </div>
     </form>
 </div>
@@ -63,7 +67,7 @@
 <div id="content-box">
     <label>Retrieved {{.NumResults}} results in {{.TimeElapsed}}</label><br>
     {{range .Result}}
-        <a href="https://www.pixiv.net/en/artworks/{{.ID}}"><img src="{{.ImageURLs.SquareMedium}}" alt="{{.Title}}" width="250" height="250"/></a>
+        <a href="https://www.pixiv.net/en/artworks/{{.ID}}"><img src="{{.ImageURLs.SquareMedium}}" alt="{{.Title}}" width="250" height="250" onload="blurElement(this, {{.XRestrict}} === 1)"/></a>
     {{end}}
 </div>
 </body>

@@ -1,4 +1,11 @@
 const URL_PARAMS = new URLSearchParams(window.location.search);
+let BLUR_R18 = false;
+
+function blurElement(element, isR18) {
+    if (BLUR_R18 && isR18) {
+        element.classList.add("blurred")
+    }
+}
 
 function makeCollapsible(collapseButton, collapsibleDiv) {
     collapseButton.addEventListener("click", function() {
@@ -173,6 +180,10 @@ document.addEventListener("DOMContentLoaded", function() {
     let num = URL_PARAMS.get("num");
     if (num !== "" && num !== " " && num !== undefined) {
         document.getElementById("num").value = num;
+    }
+
+    if (URL_PARAMS.get("blur_r18") === "true") {
+        document.getElementById("blur_r18").checked = BLUR_R18 = true;
     }
 
     switch (URL_PARAMS.get("search_target")) {
