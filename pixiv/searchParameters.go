@@ -4,17 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-)
-
-const (
-	wordParam      = "word"
-	offsetParam    = "offset"
-	matchParam     = "search_target"
-	sortParam      = "sort"
-	durationParam  = "duration"
-	startDateParam = "start_date"
-	endDateParam   = "end_date"
-	filterParam    = "filter"
+	"time"
 )
 
 type SearchParameters struct {
@@ -28,107 +18,51 @@ type SearchParameters struct {
 	Filter    string
 }
 
-func (params *SearchParameters) toString() (string, error) {
+func (params *SearchParameters) toURLEncodedParams() string {
+	return url.Values{
+		"word":          {params.Word},
+		"offset":        {strconv.Itoa(params.Offset)},
+		"search_target": {params.Match},
+		"sort":          {params.Sort},
+		"duration":      {params.Duration},
+		"start_date":    {params.StartDate},
+		"end_date":      {params.EndDate},
+		"filter":        {params.Filter},
+	}.Encode()
+}
+
+func (params *SearchParameters) Validate() error {
 	if params.Word == "" {
-		return "", parameterError(wordParam, params.Word)
+		return parameterError("word", params.Word)
 	}
 
-	values := url.Values{
-		wordParam:   {params.Word},
-		offsetParam: {strconv.Itoa(params.Offset)},
+	if params.Match != "" && params.Match != "exact_match_for_tags" && params.Match != "partial_match_for_tags" && params.Match != "title_and_caption" {
+		return parameterError("search_target", params.Match)
 	}
 
-	if params.Match != "" {
-		if err := params.validateMatchOption(); err != nil {
-			return "", err
-		}
-
-		values.Set(matchParam, params.Match)
+	if params.Sort != "" && params.Sort != "date_asc" && params.Sort != "date_desc" && params.Sort != "popular_desc" {
+		return parameterError("sort", params.Sort)
 	}
 
-	if params.Sort != "" {
-		if err := params.validateSortOption(); err != nil {
-			return "", err
-		}
-
-		values.Set(sortParam, params.Sort)
-	}
-
-	if params.Duration != "" {
-		if err := params.validateDurationOption(); err != nil {
-			return "", err
-		}
-
-		values.Set(durationParam, params.Duration)
+	if params.Duration != "" && params.Duration != "within_last_month" && params.Duration != "within_last_week" && params.Duration != "within_last_day" {
+		return parameterError("duration", params.Duration)
 	}
 
 	if params.StartDate != "" {
-		if err := params.validateStartDateOption(); err != nil {
-			return "", err
+		if _, err := time.Parse("2000-01-01", params.StartDate); err != nil {
+			return parameterError("start_date", params.StartDate)
 		}
-
-		values.Set(startDateParam, params.StartDate)
 	}
 
 	if params.EndDate != "" {
-		if err := params.validateEndDateOption(); err != nil {
-			return "", err
+		if _, err := time.Parse("2000-01-01", params.EndDate); err != nil {
+			return parameterError("end_date", params.EndDate)
 		}
-
-		values.Set(endDateParam, params.EndDate)
 	}
 
-	if params.Filter != "" {
-		values.Set(filterParam, params.Filter)
-	}
-
-	return values.Encode(), nil
-}
-
-func (params *SearchParameters) validateMatchOption() error {
-	if params.Match == "exact_match_for_tags" || params.Match == "partial_match_for_tags" || params.Match == "title_and_caption" {
-		return nil
-	}
-
-	return parameterError(matchParam, params.Match)
-}
-
-func (params *SearchParameters) validateSortOption() error {
-	if params.Sort == "date_asc" || params.Sort == "date_desc" || params.Sort == "popular_desc" {
-		return nil
-	}
-
-	return parameterError(sortParam, params.Sort)
-}
-
-func (params *SearchParameters) validateDurationOption() error {
-	if params.Duration == "within_last_month" || params.Duration == "within_last_week" || params.Duration == "within_last_day" {
-		return nil
-	}
-
-	return parameterError(durationParam, params.Duration)
-}
-
-func (params *SearchParameters) validateStartDateOption() error {
-	if dateOptionIsValid(params.StartDate) {
-		return nil
-	}
-
-	return parameterError(startDateParam, params.StartDate)
-}
-
-func (params *SearchParameters) validateEndDateOption() error {
-	if dateOptionIsValid(params.EndDate) {
-		return nil
-	}
-
-	return parameterError(endDateParam, params.EndDate)
+	return nil
 }
 
 func parameterError(parameterName string, parameterValue string) error {
 	return fmt.Errorf("\"%s\" is not a valid value for the \"%s\" parameter", parameterValue, parameterName)
-}
-
-func dateOptionIsValid(str string) bool {
-	return true // TODO: implement this
 }

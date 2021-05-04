@@ -20,12 +20,12 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	http.Handle("/",               FileHandler("html/index.html"))
+	http.Handle("/", FileHandler("html/index.html"))
 	http.Handle("/stylesheet.css", FileHandler("html/stylesheet.css"))
-	http.Handle("/script.js",      FileHandler("html/script.js"))
-	http.Handle("/search",         SearchHandler(client))
-	http.Handle("/autocomplete",   AutocompleteHandler(client))
-	http.Handle("/redirect",       RedirectHandler())
+	http.Handle("/script.js", FileHandler("html/script.js"))
+	http.Handle("/search", SearchHandler(client))
+	http.Handle("/autocomplete", AutocompleteHandler(client))
+	http.Handle("/redirect", RedirectHandler())
 
 	if err = http.ListenAndServe(":80", nil); err != nil {
 		println(err.Error())
@@ -40,16 +40,16 @@ func FileHandler(filePath string) http.Handler {
 
 func SearchHandler(client *pixiv.Client) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		query    := request.URL.Query()
-		word     := query.Get("word")
-		match    := query.Get("search_target")
-		sortOp   := query.Get("sort")
-		reSort   := query.Get("resort")
+		query := request.URL.Query()
+		word := query.Get("word")
+		match := query.Get("search_target")
+		sortOp := query.Get("sort")
+		reSort := query.Get("resort")
 		duration := query.Get("duration")
-		startOp  := query.Get("start_date")
-		end      := query.Get("end_date")
-		filter   := query.Get("filter")
-		numStr   := query.Get("num")
+		startOp := query.Get("start_date")
+		end := query.Get("end_date")
+		filter := query.Get("filter")
+		numStr := query.Get("num")
 
 		if word == "" {
 			http.Redirect(writer, request, "/?"+request.URL.RawQuery, http.StatusSeeOther)
@@ -69,6 +69,11 @@ func SearchHandler(client *pixiv.Client) http.Handler {
 			StartDate: startOp,
 			EndDate:   end,
 			Filter:    filter,
+		}
+
+		if err := searchParameters.Validate(); err != nil {
+			http.Error(writer, "400 bad request - "+err.Error(), http.StatusBadRequest)
+			return
 		}
 
 		start := time.Now()

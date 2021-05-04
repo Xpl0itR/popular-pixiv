@@ -16,6 +16,8 @@ const (
 	autocompleteURL = apiURL + "/v2/search/autocomplete"
 )
 
+var offsetRegex, _ = regexp.Compile("(?i)offset=\\d+")
+
 type ErrorRes struct {
 	UserMessage        string      `json:"user_message"`
 	Message            string      `json:"message"`
@@ -57,11 +59,6 @@ type AutocompleteSuggestions struct {
 func (client *Client) SearchApi(params *SearchParameters) (*SearchResult, error) {
 	searchResult := &SearchResult{}
 
-	paramString, err := params.toString()
-	if err != nil {
-		return searchResult, err
-	}
-
 	if err := client.RefreshIfExpired(); err != nil {
 		return searchResult, err
 	}
@@ -71,7 +68,7 @@ func (client *Client) SearchApi(params *SearchParameters) (*SearchResult, error)
 		return searchResult, err
 	}
 
-	request.URL.RawQuery = paramString
+	request.URL.RawQuery = params.toURLEncodedParams()
 	request.Header.Set("Authorization", "Bearer "+client.accessToken)
 
 	response, err := http.DefaultClient.Do(request)
@@ -95,11 +92,11 @@ func (client *Client) SearchApi(params *SearchParameters) (*SearchResult, error)
 	return searchResult, nil
 }
 
-func (client *Client) SearchBatch(numResults int, params *SearchParameters) (illusts []Illust, err error) {
+func (client *Client) SearchBatch(numResults int, params *SearchParameters) (illusts []Illust, err error) { // TODO: Make this less bad
 	for numResults > 0 {
 		results, err := client.SearchApi(params)
 		if err != nil {
-			return illusts, err // Todo: aggregate errors rather than returning
+			return illusts, err
 		}
 
 		illusts = append(illusts, results.Illusts...)
@@ -112,24 +109,15 @@ func (client *Client) SearchBatch(numResults int, params *SearchParameters) (ill
 		params.Offset, err = GetSearchOffsetFromURL(results.NextURL)
 		if err != nil {
 			return illusts, err
-		} // Todo: aggregate errors rather than returning
+		}
 	}
 
 	return
 }
 
 func GetSearchOffsetFromURL(URL string) (int, error) {
-	regex, err := regexp.Compile("(?i)\\?offset=\\d+")
-	if err != nil {
-		return 0, err
-	}
-
-	offsetString := regex.FindString(URL)
-	if offsetString == "" {
-		return 0, nil
-	}
-
-	offset, err := strconv.Atoi(offsetString[8:])
+	offsetString := offsetRegex.FindString(URL)
+	offset, err := strconv.Atoi(offsetString[7:])
 	if err != nil {
 		return 0, err
 	}
@@ -139,7 +127,7 @@ func GetSearchOffsetFromURL(URL string) (int, error) {
 
 func (client *Client) GetAutocompleteStream(word string) (io.ReadCloser, error) {
 	if word == "" {
-		return nil, parameterError(wordParam, word)
+		return nil, parameterError("word", word)
 	}
 
 	request, err := http.NewRequest("GET", autocompleteURL, nil)
