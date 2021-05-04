@@ -8,7 +8,7 @@ function blurElement(element, isR18) {
 }
 
 function makeCollapsible(collapseButton, collapsibleDiv) {
-    collapseButton.addEventListener("click", function() {
+    collapseButton.addEventListener("click", function () {
         collapseButton.classList.toggle("collapse-button-active");
         if (collapsibleDiv.style.display === "block") {
             collapsibleDiv.style.display = "none";
@@ -54,12 +54,12 @@ function makeAutocomplete(inputBox) {
     }
 
     let idleTimer = null;
-    inputBox.addEventListener("input", function(e) {
+    inputBox.addEventListener("input", function (e) {
         if (e.data === " ") return;
         clearTimeout(idleTimer);
         if (e.data == null) return;
 
-        idleTimer = setTimeout(async function() {
+        idleTimer = setTimeout(async function () {
             closeAllLists();
             let input = inputBox.value?.trim();
             if (!input) return false;
@@ -80,7 +80,7 @@ function makeAutocomplete(inputBox) {
                     }
                     elementDiv.innerHTML += `<input type='hidden' value='${match.name}'>`;
 
-                    elementDiv.addEventListener("click", function() {
+                    elementDiv.addEventListener("click", function () {
                         let tag = elementDiv.getElementsByTagName("input")[0].value
                         inputBox.value = inputBox.value.replace(lastInput, tag)
                         closeAllLists();
@@ -92,7 +92,7 @@ function makeAutocomplete(inputBox) {
         }, 500)
     });
 
-    inputBox.addEventListener("keydown", function(e) {
+    inputBox.addEventListener("keydown", function (e) {
         let elements = document.getElementById(inputBox.id + "autocomplete-list");
         if (elements) {
             elements = elements.getElementsByTagName("div");
@@ -101,14 +101,10 @@ function makeAutocomplete(inputBox) {
         if (e.keyCode === 40) {
             currentFocus++;
             addActive(elements);
-        }
-
-        else if (e.keyCode === 38) {
+        } else if (e.keyCode === 38) {
             currentFocus--;
             addActive(elements);
-        }
-
-        else if (e.keyCode === 13) {
+        } else if (e.keyCode === 13) {
             if (currentFocus > -1) {
                 e.preventDefault();
 
@@ -120,7 +116,9 @@ function makeAutocomplete(inputBox) {
         }
     });
 
-    document.addEventListener("click", function(e) { closeAllLists(e.target); });
+    document.addEventListener("click", function (e) {
+        closeAllLists(e.target);
+    });
 }
 
 async function getMatchesFromPixiv(input) {
@@ -136,15 +134,14 @@ async function getMatchesFromPixiv(input) {
                 hint: suggestion["translated_name"]
             });
         }
-    }
-    catch (e) {
+    } catch (e) {
         console.log("Failed to retrieve autocomplete suggestions from Pixiv.", e)
     }
 
     return matches;
 }
 
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
     makeAutocomplete(document.getElementById("search-box"));
     makeCollapsible(document.getElementById("advanced-options-button"), document.getElementById("advanced-options"));
 

@@ -67,7 +67,10 @@
 <div id="content-box">
     <label>Retrieved {{.NumResults}} results in {{.TimeElapsed}}</label><br>
     {{range .Result}}
-        <a href="https://www.pixiv.net/en/artworks/{{.ID}}"><img src="{{.ImageURLs.SquareMedium}}" alt="{{.Title}}" width="250" height="250" onload="blurElement(this, {{.XRestrict}} === 1)"/></a>
+    <a href="https://www.pixiv.net/en/artworks/{{.ID}}"><img src="{{.ImageURLs.SquareMedium}}" alt="{{.Title}}"
+                                                             width="250" height="250"
+                                                             onload="blurElement(this, {{.XRestrict}} === 1)"
+                                                             onerror="this.onerror = null; this.src = `/redirect?destination=${this.src}`;"/></a>
     {{end}}
 </div>
 </body>
