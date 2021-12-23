@@ -1,27 +1,47 @@
+html {
+	background-color: #202124;
+	color: #e8eaed;
+}
+
+input, .collapse-button {
+	background-color: #303134;
+	color: #e8eaed;
+    border: none;
+    cursor: pointer;
+}
+
+input:hover, .collapse-button:hover {
+    background-color: #171717;
+}
+
+input:active, .collapse-button:active {
+    background-color: #000000;
+}
+
 .autocomplete {
     position: relative;
     display: inline-block;
 }
 
 .autocomplete-active {
-    background-color: #e9e9e9 !important;
+    background-color: #171717 !important;
 }
 
 .autocomplete-items {
     position: absolute;
-    border: 1px solid #d4d4d4;
+    border: 1px solid #e8eaed;
     border-bottom: none;
     border-top: none;
-    background-color: #ffffff;
+    background-color: #303134;
+    cursor: pointer;
 }
 
 .autocomplete-items div {
-    cursor: pointer;
-    border-bottom: 1px solid #d4d4d4;
+    border-bottom: 1px solid #e8eaed;
 }
 
 .autocomplete-items div:hover {
-    background-color: #e9e9e9;
+    background-color: #171717;
 }
 
 .blurred {
@@ -31,12 +51,6 @@
 
 .blurred:hover {
     filter: blur(0);
-}
-
-.collapse-button {
-    cursor: pointer;
-    border: none;
-    outline: none;
 }
 
 .collapse-button:after {
