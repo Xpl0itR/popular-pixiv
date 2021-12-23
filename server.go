@@ -56,6 +56,10 @@ func SearchHandler(client *pixiv.Client) http.Handler {
 			return
 		}
 
+		if duration == "all_time" {
+			duration = ""
+		}
+
 		num, err := strconv.Atoi(numStr)
 		if err != nil {
 			num = 30
