@@ -1,23 +1,25 @@
 package main
 
 import (
+	"flag"
 	"github.com/Xpl0itR/popular-pixiv/pixiv"
 	"html/template"
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"sort"
 	"strconv"
 	"time"
 )
 
 func main() {
-	refreshToken := os.Getenv("REFRESH_TOKEN")
+	address := flag.String("address", ":80", "The address the webserver will listen on, in the form \"ip:port\"")
+	refreshToken := flag.String("refresh_token", "", "The refresh token of the pixiv account used to access the API")
+	flag.Parse()
 
-	client, err := pixiv.NewClient(refreshToken)
+	client, err := pixiv.NewClient(*refreshToken)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatalln(err.Error())
 	}
 
 	http.Handle("/", FileHandler("html/index.html"))
@@ -27,8 +29,9 @@ func main() {
 	http.Handle("/autocomplete", AutocompleteHandler(client))
 	http.Handle("/redirect", RedirectHandler())
 
-	if err = http.ListenAndServe(":80", nil); err != nil {
-		println(err.Error())
+	log.Printf("Listening on %s\n", *address)
+	if err = http.ListenAndServe(*address, nil); err != nil {
+		log.Fatalln(err.Error())
 	}
 }
 
