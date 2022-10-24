@@ -2,7 +2,7 @@
 
 buildGoModule rec {
   pname   = "popular-pixiv";
-  version = "fbe50e3";
+  version = "2967360";
   meta    = {
     description = "A website which sorts pixiv search results by popularity";
     homepage    = "https://github.com/Xpl0itR/popular-pixiv";
@@ -11,8 +11,8 @@ buildGoModule rec {
   src = fetchFromGitHub {
     owner  = "Xpl0itR";
     repo   = "popular-pixiv";
-    rev    = "fbe50e3524a1383319bc89b3ddc3248b837fc1d3";
-    sha256 = "sha256-GIIoXBnnoUL25zoTEpewPiWrczHb44Ttu7+DiLYOOaM=";
+    rev    = "2967360fcfa433b5346f4a5bf31b187805b79326";
+    sha256 = "sha256-f2Uw6tSRyzyob+/QhjepeHVHTHlHb3vMRS4ej+OG/To=";
   };
 
   vendorSha256 = null;
