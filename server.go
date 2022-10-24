@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"github.com/Xpl0itR/popular-pixiv/pixiv"
 	"html/template"
@@ -9,6 +10,8 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
+	"syscall"
 	"time"
 )
 
@@ -22,27 +25,25 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	http.Handle("/", FileHandler("html/index.html"))
-	http.Handle("/stylesheet.css", FileHandler("html/stylesheet.css"))
-	http.Handle("/script.js", FileHandler("html/script.js"))
-	http.Handle("/search", SearchHandler(client))
-	http.Handle("/autocomplete", AutocompleteHandler(client))
-	http.Handle("/redirect", RedirectHandler())
+	searchTemplate, err := template.ParseFiles("html/search.html")
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+
+	server := http.NewServeMux()
+	server.HandleFunc("/search", SearchHandler(client, searchTemplate))
+	server.HandleFunc("/autocomplete", AutocompleteHandler(client))
+	server.HandleFunc("/", RootHandler)
+	server.HandleFunc("/redirect", RedirectHandler)
 
 	log.Printf("Listening on %s\n", *address)
-	if err = http.ListenAndServe(*address, nil); err != nil {
+	if err = http.ListenAndServe(*address, server); err != nil {
 		log.Fatalln(err.Error())
 	}
 }
 
-func FileHandler(filePath string) http.Handler {
-	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		http.ServeFile(writer, request, filePath)
-	})
-}
-
-func SearchHandler(client *pixiv.Client) http.Handler {
-	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+func SearchHandler(client *pixiv.Client, pageTemplate *template.Template) func(http.ResponseWriter, *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
 		query := request.URL.Query()
 		word := query.Get("word")
 		match := query.Get("search_target")
@@ -102,81 +103,81 @@ func SearchHandler(client *pixiv.Client) http.Handler {
 		}
 
 		model := struct {
-			Result      *[]pixiv.Illust
+			Result      []pixiv.Illust
 			NumResults  int
 			TimeElapsed string
 		}{
-			&result,
+			result,
 			len(result),
 			time.Since(start).String(),
 		}
 
-		tmpl, err := template.ParseFiles("html/search.html")
-		if err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
-			return
+		if err := pageTemplate.Execute(writer, model); err != nil {
+			if !errors.Is(err, syscall.WSAECONNABORTED) {
+				log.Println(err.Error())
+			}
 		}
-
-		if err := tmpl.Execute(writer, model); err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	})
+	}
 }
 
-func AutocompleteHandler(client *pixiv.Client) http.Handler {
-	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+func AutocompleteHandler(client *pixiv.Client) func(http.ResponseWriter, *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
 		word := request.URL.Query().Get("word")
-
 		if word == "" {
 			http.Error(writer, "400 bad request - word parameter is mandatory", http.StatusBadRequest)
 			return
 		}
 
-		stream, err := client.GetAutocompleteStream(word)
+		response, err := client.GetAutocompleteResponse(word)
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		defer response.Body.Close()
 
-		if _, err = io.Copy(writer, stream); err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	})
-}
-
-func RedirectHandler() http.Handler {
-	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		destination := request.URL.Query().Get("destination")
-
-		if destination == "" {
-			http.Error(writer, "400 bad request - destination parameter is mandatory", http.StatusBadRequest)
-			return
-		}
-
-		request, err := http.NewRequest("GET", destination, nil)
-		if err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		if request.Host != "i.pximg.net" {
-			http.Error(writer, "400 bad request - destination host must be i.pximg.net", http.StatusBadRequest)
-			return
-		}
-
-		request.Header.Set("Referer", "https://i.pximg.net")
-
-		response, err := http.DefaultClient.Do(request)
-		if err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
+		writer.WriteHeader(response.StatusCode)
 		if _, err = io.Copy(writer, response.Body); err != nil {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
-			return
 		}
-	})
+	}
+}
+
+func RootHandler(writer http.ResponseWriter, request *http.Request) {
+	switch request.URL.Path {
+	case "/":
+		http.ServeFile(writer, request, "html/index.html")
+	case "/script.js":
+		http.ServeFile(writer, request, "html/script.js")
+	case "/stylesheet.css":
+		http.ServeFile(writer, request, "html/stylesheet.css")
+	default:
+		http.NotFound(writer, request)
+	}
+}
+
+// RedirectHandler should only be used as a fallback or for testing, it is more efficient to use a cloudflare worker
+func RedirectHandler(writer http.ResponseWriter, request *http.Request) {
+	destination := request.URL.Query().Get("destination")
+
+	if destination == "" || !strings.HasPrefix(destination, "https://i.pximg.net") {
+		http.Error(writer, "400 - bad request", http.StatusBadRequest)
+		return
+	}
+
+	newRequest, _ := http.NewRequest("GET", destination, nil)
+	newRequest.Header.Set("Host", "i.pximg.net")
+	newRequest.Header.Set("Referer", "https://www.pixiv.net/")
+
+	response, err := http.DefaultClient.Do(newRequest)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer response.Body.Close()
+
+	if _, err = io.Copy(writer, response.Body); err != nil {
+		if !errors.Is(err, syscall.WSAECONNABORTED) {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+		}
+	}
 }

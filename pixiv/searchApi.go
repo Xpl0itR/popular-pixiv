@@ -1,10 +1,7 @@
 package pixiv
 
 import (
-	"encoding/json"
 	"errors"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -16,13 +13,13 @@ const (
 	autocompleteURL = apiURL + "/v2/search/autocomplete"
 )
 
-var offsetRegex, _ = regexp.Compile("(?i)offset=\\d+")
+var offsetRegex = regexp.MustCompile("offset=(\\d+)")
 
 type ErrorRes struct {
-	UserMessage        string      `json:"user_message"`
-	Message            string      `json:"message"`
-	Reason             string      `json:"reason"`
-	UserMessageDetails interface{} `json:"user_message_details"`
+	UserMessage string `json:"user_message"`
+	Message     string `json:"message"`
+	Reason      string `json:"reason"`
+	//UserMessageDetails interface{} `json:"user_message_details"`
 }
 
 // struct contains only what is used
@@ -57,31 +54,21 @@ type AutocompleteSuggestions struct {
 }
 
 func (client *Client) SearchApi(params *SearchParameters) (*SearchResult, error) {
-	searchResult := &SearchResult{}
-
 	if err := client.RefreshIfExpired(); err != nil {
-		return searchResult, err
+		return nil, err
 	}
 
-	request, err := http.NewRequest("GET", searchApiURL, nil)
-	if err != nil {
-		return searchResult, err
-	}
-
+	request, _ := http.NewRequest("GET", searchApiURL, nil)
 	request.URL.RawQuery = params.toURLEncodedParams()
 	request.Header.Set("Authorization", "Bearer "+client.accessToken)
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := client.httpClient.Do(request)
 	if err != nil {
-		return searchResult, err
+		return nil, err
 	}
 
-	responseBody, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return searchResult, err
-	}
-
-	if err = json.Unmarshal(responseBody, searchResult); err != nil {
+	searchResult := &SearchResult{}
+	if err = unmarshalJSONFromResponse(response, searchResult); err != nil {
 		return searchResult, err
 	}
 
@@ -92,7 +79,9 @@ func (client *Client) SearchApi(params *SearchParameters) (*SearchResult, error)
 	return searchResult, nil
 }
 
-func (client *Client) SearchBatch(numResults int, params *SearchParameters) (illusts []Illust, err error) { // TODO: Make this less bad
+func (client *Client) SearchBatch(numResults int, params *SearchParameters) ([]Illust, error) {
+	var illusts []Illust
+
 	for numResults > 0 {
 		results, err := client.SearchApi(params)
 		if err != nil {
@@ -105,63 +94,45 @@ func (client *Client) SearchBatch(numResults int, params *SearchParameters) (ill
 		if results.NextURL == "" {
 			break
 		}
-
-		params.Offset, err = GetSearchOffsetFromURL(results.NextURL)
-		if err != nil {
-			return illusts, err
-		}
+		params.Offset = GetSearchOffsetFromURL(results.NextURL)
 	}
 
-	return
+	return illusts, nil
 }
 
-func GetSearchOffsetFromURL(URL string) (int, error) {
-	offsetString := offsetRegex.FindString(URL)
-	offset, err := strconv.Atoi(offsetString[7:])
-	if err != nil {
-		return 0, err
-	}
-
-	return offset, nil
+func GetSearchOffsetFromURL(URL string) int {
+	offsetString := offsetRegex.FindStringSubmatch(URL)[1]
+	offset, _ := strconv.Atoi(offsetString)
+	return offset
 }
 
-func (client *Client) GetAutocompleteStream(word string) (io.ReadCloser, error) {
-	if word == "" {
-		return nil, parameterError("word", word)
-	}
-
-	request, err := http.NewRequest("GET", autocompleteURL, nil)
-	if err != nil {
+func (client *Client) GetAutocompleteResponse(word string) (*http.Response, error) {
+	if err := client.RefreshIfExpired(); err != nil {
 		return nil, err
 	}
 
+	request, _ := http.NewRequest("GET", autocompleteURL, nil)
 	request.URL.RawQuery = "word=" + word
 	request.Header.Set("Authorization", "Bearer "+client.accessToken)
 	request.Header.Set("Accept-Language", "en-US")
 
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return nil, err
-	}
-
-	return response.Body, nil
+	return client.httpClient.Do(request)
 }
 
-func (client *Client) GetAutocompleteSuggestions(word string) (*[]AutocompleteSuggestions, error) {
-	stream, err := client.GetAutocompleteStream(word)
-	if err != nil {
-		return nil, err
+func (client *Client) GetAutocompleteSuggestions(word string) ([]AutocompleteSuggestions, error) {
+	if word == "" {
+		return nil, parameterError("word", word)
 	}
 
-	responseBody, err := ioutil.ReadAll(stream)
+	response, err := client.GetAutocompleteResponse(word)
 	if err != nil {
 		return nil, err
 	}
 
 	autocompleteResponse := AutocompleteResult{}
-	if err = json.Unmarshal(responseBody, &autocompleteResponse); err != nil {
+	if err = unmarshalJSONFromResponse(response, &autocompleteResponse); err != nil {
 		return nil, err
 	}
 
-	return &autocompleteResponse.Tags, nil
+	return autocompleteResponse.Tags, nil
 }

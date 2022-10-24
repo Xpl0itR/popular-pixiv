@@ -1,4 +1,4 @@
-FROM golang:1.15-alpine
+FROM golang:1.18-alpine
 
 COPY . /go/src/popular-pixiv
 WORKDIR /go/src/popular-pixiv

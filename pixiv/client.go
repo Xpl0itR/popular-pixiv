@@ -3,9 +3,10 @@ package pixiv
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 )
 
@@ -18,7 +19,10 @@ const (
 type Client struct {
 	accessToken  string
 	refreshToken string
+	refreshMutex sync.Mutex
+	refreshWait  sync.WaitGroup
 	tokenExpires time.Time
+	httpClient   http.Client
 }
 
 type RefreshResponse struct {
@@ -31,9 +35,12 @@ type RefreshResponse struct {
 }
 
 func NewClient(refreshToken string) (*Client, error) {
-	client := Client{refreshToken: refreshToken}
+	client := Client{
+		refreshToken: refreshToken,
+		httpClient:   http.Client{},
+	}
 
-	if err := client.RefreshTokens(); err != nil {
+	if err := client.refreshTokens(); err != nil {
 		return nil, err
 	}
 
@@ -41,42 +48,61 @@ func NewClient(refreshToken string) (*Client, error) {
 }
 
 func (client *Client) RefreshIfExpired() error {
-	if time.Now().After(client.tokenExpires) {
-		return client.RefreshTokens()
+	// If the token is not expired we do nothing
+	if time.Now().Before(client.tokenExpires) {
+		return nil
 	}
 
-	return nil
+	// The first goroutine will acquire the lock
+	if client.refreshMutex.TryLock() {
+		// and increment the wait group
+		client.refreshWait.Add(1)
+	} else {
+		// The rest of the goroutines will block until the token is refreshed
+		client.refreshWait.Wait()
+		return nil
+	}
+	defer client.refreshWait.Done()
+	defer client.refreshMutex.Unlock()
+
+	// The first goroutine refreshes the token
+	return client.refreshTokens()
 }
 
-func (client *Client) RefreshTokens() error {
+func (client *Client) refreshTokens() error {
 	if client.refreshToken == "" {
 		return errors.New("the client doesn't have a refresh token")
 	}
 
-	response, err := http.PostForm(oAuthURL, url.Values{
+	response, err := client.httpClient.PostForm(oAuthURL, url.Values{
 		"client_id":     {clientID},
 		"client_secret": {clientSecret},
 		"refresh_token": {client.refreshToken},
 		"grant_type":    {"refresh_token"},
 	})
-
-	if err != nil {
-		return err
-	}
-
-	responseBody, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return err
 	}
 
 	refreshResponse := RefreshResponse{}
-	if err = json.Unmarshal(responseBody, &refreshResponse); err != nil {
+	if err = unmarshalJSONFromResponse(response, &refreshResponse); err != nil {
 		return err
 	}
 
 	client.accessToken = refreshResponse.AccessToken
 	client.refreshToken = refreshResponse.RefreshToken
-	client.tokenExpires = time.Now().Add(time.Duration(refreshResponse.ExpiresIn))
+	client.tokenExpires = time.Now().Add(time.Duration(refreshResponse.ExpiresIn) * time.Second)
 
 	return nil
+}
+
+func unmarshalJSONFromResponse(response *http.Response, v any) error {
+	defer response.Body.Close()
+
+	responseBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(responseBody, v)
 }
