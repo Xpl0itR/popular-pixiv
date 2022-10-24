@@ -1,11 +1,4 @@
 const URL_PARAMS = new URLSearchParams(window.location.search);
-let BLUR_R18 = false;
-
-function blurElement(element, isR18) {
-    if (BLUR_R18 && isR18) {
-        element.classList.add("blurred")
-    }
-}
 
 function makeCollapsible(collapseButton, collapsibleDiv) {
     collapseButton.addEventListener("click", function () {
@@ -142,6 +135,10 @@ async function getMatchesFromPixiv(input) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+    fetch("https://i.pximg.net/user-profile/img/2021/01/06/04/27/52/19953527_f43093cfca0c2878ccdb88f55ba59efb_170.png")
+        .then(() => document.getElementById("enable_redirect").value = "")
+        .catch(() => document.getElementById("enable_redirect").value = "true")
+
     makeAutocomplete(document.getElementById("search-box"));
     makeCollapsible(document.getElementById("advanced-options-button"), document.getElementById("advanced-options"));
 
@@ -153,7 +150,7 @@ document.addEventListener("DOMContentLoaded", function () {
         form.addEventListener("submit", function () {
             for (let input of form.getElementsByTagName("input")) {
                 if (input.value === "" || input.value === " " || input.value === undefined) {
-                    input.setAttribute("disabled", true);
+                    input.setAttribute("disabled", "true");
                 }
             }
         });
@@ -180,7 +177,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     if (URL_PARAMS.get("blur_r18") === "true") {
-        document.getElementById("blur_r18").checked = BLUR_R18 = true;
+        document.getElementById("blur_r18").checked = true;
     }
 
     switch (URL_PARAMS.get("search_target")) {

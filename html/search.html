@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Popular Pixiv</title>
-    <link rel="stylesheet" href="stylesheet.css">
     <script type="text/javascript" src="script.js"></script>
+    <link rel="stylesheet" href="stylesheet.css">
 </head>
 <body>
 <div id="options-bar">
@@ -61,16 +61,27 @@
                 <input type="checkbox" id="blur_r18" name="blur_r18" value="true">
             </div>
         </div>
+        <input type="hidden" id="enable_redirect" name="redirect" value="">
     </form>
 </div>
 <br>
 <div id="content-box">
     <label>Retrieved {{.NumResults}} results in {{.TimeElapsed}}</label><br>
     {{range .Result}}
-    <a href="https://www.pixiv.net/en/artworks/{{.ID}}"><img src="{{.ImageURLs.SquareMedium}}" alt="{{.Title}}"
-                                                             width="250" height="250"
-                                                             onload="blurElement(this, {{.XRestrict}} === 1)"
-                                                             onerror="this.onerror = null; this.src = `/redirect?destination=${this.src}`;"/></a>
+    <a href="https://www.pixiv.net/en/artworks/{{.ID}}">
+        <img alt="{{.Title}}"
+             width="268"
+             height="268"
+             {{if $.Redirect}}
+                 src="/redirect?destination={{.ImageURLs.SquareMedium}}"
+             {{else}}
+                 src="{{.ImageURLs.SquareMedium}}"
+             {{end}}
+             {{if and ($.BlurR18) (.XRestrict)}}
+                 class="blurred"
+             {{end}}
+        />
+    </a>
     {{end}}
 </div>
 </body>

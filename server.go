@@ -54,6 +54,8 @@ func SearchHandler(client *pixiv.Client, pageTemplate *template.Template) func(h
 		end := query.Get("end_date")
 		filter := query.Get("filter")
 		numStr := query.Get("num")
+		redirect := query.Get("redirect")
+		blurR18 := query.Get("blur_r18")
 
 		if word == "" {
 			http.Redirect(writer, request, "/?"+request.URL.RawQuery, http.StatusSeeOther)
@@ -106,10 +108,14 @@ func SearchHandler(client *pixiv.Client, pageTemplate *template.Template) func(h
 			Result      []pixiv.Illust
 			NumResults  int
 			TimeElapsed string
+			Redirect    bool
+			BlurR18     bool
 		}{
 			result,
 			len(result),
 			time.Since(start).String(),
+			redirect == "true",
+			blurR18 == "true",
 		}
 
 		if err := pageTemplate.Execute(writer, model); err != nil {
