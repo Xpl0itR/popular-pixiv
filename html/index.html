@@ -4,18 +4,88 @@
     <meta charset="UTF-8">
     <title>Popular Pixiv</title>
     <script type="text/javascript" src="script.js"></script>
-    <link rel="stylesheet" href="stylesheet.css">
     <style>
+        html {
+            background-color: #202124;
+            color: #e8eaed;
+        }
+
+        input, .collapse-button {
+            background-color: #303134;
+            color: #e8eaed;
+            border: none;
+            cursor: pointer;
+        }
+
+        input:hover, .collapse-button:hover {
+            background-color: #171717;
+        }
+
+        input:active, .collapse-button:active {
+            background-color: #000000;
+        }
+
+        .autocomplete {
+            position: relative;
+            display: inline-block;
+        }
+
+        .autocomplete-active {
+            background-color: #171717 !important;
+        }
+
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid #e8eaed;
+            border-bottom: none;
+            border-top: none;
+            background-color: #303134;
+            cursor: pointer;
+        }
+
+        .autocomplete-items div {
+            border-bottom: 1px solid #e8eaed;
+        }
+
+        .autocomplete-items div:hover {
+            background-color: #171717;
+        }
+
+        .blurred {
+            filter: blur(10px);
+            transition: filter 0.25s linear;
+        }
+
+        .blurred:hover {
+            filter: blur(0);
+        }
+
+        .collapse-button:after {
+            content: '▼';
+            margin-left: 5px;
+        }
+
+        .collapse-button-active:after {
+            content: "▲";
+        }
+
+        .collapsible {
+            display: none;
+        }
+
+        {{if not .IsSearchPage}}
         .autocomplete {
             position: absolute;
             top: 45%;
             left: 15%;
         }
+
         #search-box {
             height: 3vh;
             min-height: 20px;
             width: 50vw;
         }
+
         #submit-button {
             position: absolute;
             top: 45%;
@@ -24,6 +94,7 @@
             min-height: 25px;
             width: 100px;
         }
+        {{end}}
     </style>
 </head>
 <body>
@@ -84,5 +155,27 @@
         <input type="hidden" id="enable_redirect" name="redirect" value="">
     </form>
 </div>
+{{if .IsSearchPage}}
+<br>
+<div id="content-box">
+    <label>Retrieved {{.NumResults}} results in {{.TimeElapsed}}</label><br>
+    {{range .Result}}
+    <a href="https://www.pixiv.net/en/artworks/{{.ID}}">
+        <img alt="{{.Title}}"
+             width="268"
+             height="268"
+             {{if $.Redirect}}
+                 src="/redirect?destination={{.ImageURLs.SquareMedium}}"
+             {{else}}
+                 src="{{.ImageURLs.SquareMedium}}"
+             {{end}}
+             {{if and ($.BlurR18) (.XRestrict)}}
+                 class="blurred"
+             {{end}}
+        />
+    </a>
+    {{end}}
+</div>
+{{end}}
 </body>
 </html>

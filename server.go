@@ -1,7 +1,7 @@
 package main
 
 import (
-	"errors"
+	"bytes"
 	"flag"
 	"github.com/Xpl0itR/popular-pixiv/pixiv"
 	"html/template"
@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -25,15 +24,18 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	searchTemplate, err := template.ParseFiles("html/search.html")
-	if err != nil {
+	htmlTemplate := template.Must(template.ParseFiles("html/index.html"))
+
+	var indexHtml bytes.Buffer
+	if err := htmlTemplate.Execute(&indexHtml, struct{ IsSearchPage bool }{false}); err != nil {
 		log.Fatalln(err.Error())
 	}
+	indexHtmlReader := bytes.NewReader(indexHtml.Bytes())
 
 	server := http.NewServeMux()
-	server.HandleFunc("/search", SearchHandler(client, searchTemplate))
+	server.HandleFunc("/search", SearchHandler(client, htmlTemplate))
 	server.HandleFunc("/autocomplete", AutocompleteHandler(client))
-	server.HandleFunc("/", RootHandler)
+	server.HandleFunc("/", RootHandler(indexHtmlReader))
 	server.HandleFunc("/redirect", RedirectHandler)
 
 	log.Printf("Listening on %s\n", *address)
@@ -42,7 +44,7 @@ func main() {
 	}
 }
 
-func SearchHandler(client *pixiv.Client, pageTemplate *template.Template) func(http.ResponseWriter, *http.Request) {
+func SearchHandler(client *pixiv.Client, htmlTemplate *template.Template) func(http.ResponseWriter, *http.Request) {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		query := request.URL.Query()
 		word := query.Get("word")
@@ -105,12 +107,14 @@ func SearchHandler(client *pixiv.Client, pageTemplate *template.Template) func(h
 		}
 
 		model := struct {
-			Result      []pixiv.Illust
-			NumResults  int
-			TimeElapsed string
-			Redirect    bool
-			BlurR18     bool
+			IsSearchPage bool
+			Result       []pixiv.Illust
+			NumResults   int
+			TimeElapsed  string
+			Redirect     bool
+			BlurR18      bool
 		}{
+			true,
 			result,
 			len(result),
 			time.Since(start).String(),
@@ -118,11 +122,12 @@ func SearchHandler(client *pixiv.Client, pageTemplate *template.Template) func(h
 			blurR18 == "true",
 		}
 
-		if err := pageTemplate.Execute(writer, model); err != nil {
-			if !errors.Is(err, syscall.WSAECONNABORTED) {
-				log.Println(err.Error())
-			}
+		var searchHtml bytes.Buffer
+		if err := htmlTemplate.Execute(&searchHtml, model); err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
 		}
+
+		_, _ = searchHtml.WriteTo(writer)
 	}
 }
 
@@ -148,16 +153,17 @@ func AutocompleteHandler(client *pixiv.Client) func(http.ResponseWriter, *http.R
 	}
 }
 
-func RootHandler(writer http.ResponseWriter, request *http.Request) {
-	switch request.URL.Path {
-	case "/":
-		http.ServeFile(writer, request, "html/index.html")
-	case "/script.js":
-		http.ServeFile(writer, request, "html/script.js")
-	case "/stylesheet.css":
-		http.ServeFile(writer, request, "html/stylesheet.css")
-	default:
-		http.NotFound(writer, request)
+func RootHandler(indexHtmlReader *bytes.Reader) func(http.ResponseWriter, *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/":
+			_, _ = indexHtmlReader.Seek(0, io.SeekStart)
+			_, _ = indexHtmlReader.WriteTo(writer)
+		case "/script.js":
+			http.ServeFile(writer, request, "html/script.js")
+		default:
+			http.NotFound(writer, request)
+		}
 	}
 }
 
@@ -181,9 +187,5 @@ func RedirectHandler(writer http.ResponseWriter, request *http.Request) {
 	}
 	defer response.Body.Close()
 
-	if _, err = io.Copy(writer, response.Body); err != nil {
-		if !errors.Is(err, syscall.WSAECONNABORTED) {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
-		}
-	}
+	_, _ = io.Copy(writer, response.Body)
 }
