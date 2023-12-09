@@ -8,27 +8,33 @@ import (
 )
 
 type SearchParameters struct {
-	Word      string
 	Offset    int
+	Word      string
 	Match     string
 	Sort      string
 	Duration  string
 	StartDate string
 	EndDate   string
 	Filter    string
+	ExcludeAi bool
 }
 
 func (params *SearchParameters) toURLEncodedParams() string {
-	return url.Values{
-		"word":          {params.Word},
-		"offset":        {strconv.Itoa(params.Offset)},
-		"search_target": {params.Match},
-		"sort":          {params.Sort},
-		"duration":      {params.Duration},
-		"start_date":    {params.StartDate},
-		"end_date":      {params.EndDate},
-		"filter":        {params.Filter},
-	}.Encode()
+	queryParams := url.Values{
+		"offset": {strconv.Itoa(params.Offset)},
+		"word":   {params.Word},
+	}
+	addIfNotEmpty(queryParams, "search_target", params.Match)
+	addIfNotEmpty(queryParams, "sort", params.Sort)
+	addIfNotEmpty(queryParams, "duration", params.Duration)
+	addIfNotEmpty(queryParams, "start_date", params.StartDate)
+	addIfNotEmpty(queryParams, "end_date", params.EndDate)
+	addIfNotEmpty(queryParams, "filter", params.Filter)
+	if params.ExcludeAi {
+		queryParams.Add("search_ai_type", "1")
+	}
+
+	return queryParams.Encode()
 }
 
 func (params *SearchParameters) Validate() error {
@@ -63,6 +69,12 @@ func (params *SearchParameters) Validate() error {
 	return nil
 }
 
-func parameterError(parameterName string, parameterValue string) error {
+func addIfNotEmpty(values url.Values, key, value string) {
+	if value != "" {
+		values.Add(key, value)
+	}
+}
+
+func parameterError(parameterName, parameterValue string) error {
 	return fmt.Errorf("\"%s\" is not a valid value for the \"%s\" parameter", parameterValue, parameterName)
 }

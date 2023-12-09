@@ -52,9 +52,10 @@ func SearchHandler(client *pixiv.Client, htmlTemplate *template.Template) func(h
 		sortOp := query.Get("sort")
 		reSort := query.Get("resort")
 		duration := query.Get("duration")
-		startOp := query.Get("start_date")
+		start := query.Get("start_date")
 		end := query.Get("end_date")
 		filter := query.Get("filter")
+		excludeAi := query.Get("exclude_ai")
 		numStr := query.Get("num")
 		redirect := query.Get("redirect")
 		blurR18 := query.Get("blur_r18")
@@ -78,9 +79,10 @@ func SearchHandler(client *pixiv.Client, htmlTemplate *template.Template) func(h
 			Match:     match,
 			Sort:      sortOp,
 			Duration:  duration,
-			StartDate: startOp,
+			StartDate: start,
 			EndDate:   end,
 			Filter:    filter,
+			ExcludeAi: excludeAi == "true",
 		}
 
 		if err := searchParameters.Validate(); err != nil {
@@ -88,36 +90,42 @@ func SearchHandler(client *pixiv.Client, htmlTemplate *template.Template) func(h
 			return
 		}
 
-		start := time.Now()
+		startTime := time.Now()
 
-		result, err := client.SearchBatch(num, &searchParameters)
+		popular, err := client.SearchPopularPreview(&searchParameters)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		illusts, err := client.SearchIllustBatch(num, &searchParameters)
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		if reSort == "views" {
-			sort.Slice(result, func(i, j int) bool {
-				return result[i].TotalView > result[j].TotalView
+			sort.Slice(illusts, func(i, j int) bool {
+				return illusts[i].TotalView > illusts[j].TotalView
 			})
 		} else {
-			sort.Slice(result, func(i, j int) bool {
-				return result[i].TotalBookmarks > result[j].TotalBookmarks
+			sort.Slice(illusts, func(i, j int) bool {
+				return illusts[i].TotalBookmarks > illusts[j].TotalBookmarks
 			})
 		}
 
 		model := struct {
 			IsSearchPage bool
-			Result       []pixiv.Illust
+			Result       [][]pixiv.Illust
 			NumResults   int
 			TimeElapsed  string
 			Redirect     bool
 			BlurR18      bool
 		}{
 			true,
-			result,
-			len(result),
-			time.Since(start).String(),
+			[][]pixiv.Illust{popular.Illusts, illusts},
+			len(illusts),
+			time.Since(startTime).String(),
 			redirect == "true",
 			blurR18 == "true",
 		}
@@ -139,7 +147,7 @@ func AutocompleteHandler(client *pixiv.Client) func(http.ResponseWriter, *http.R
 			return
 		}
 
-		response, err := client.GetAutocompleteResponse(word)
+		response, err := client.SearchAutocompleteResponse(word)
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return

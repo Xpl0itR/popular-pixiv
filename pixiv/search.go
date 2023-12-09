@@ -8,28 +8,35 @@ import (
 )
 
 const (
-	apiURL          = "https://app-api.pixiv.net"
-	searchApiURL    = apiURL + "/v1/search/illust"
-	autocompleteURL = apiURL + "/v2/search/autocomplete"
+	apiBaseURL        = "https://app-api.pixiv.net"
+	illustURL         = apiBaseURL + "/v1/search/illust"
+	popularPreviewURL = apiBaseURL + "/v1/search/popular-preview/illust"
+	autocompleteURL   = apiBaseURL + "/v2/search/autocomplete"
 )
 
 var offsetRegex = regexp.MustCompile("offset=(\\d+)")
 
 type ErrorRes struct {
-	UserMessage string `json:"user_message"`
-	Message     string `json:"message"`
-	Reason      string `json:"reason"`
+	Message string `json:"message"`
+	//UserMessage string `json:"user_message"`
+	//Reason      string `json:"reason"`
 	//UserMessageDetails interface{} `json:"user_message_details"`
 }
 
-// struct contains only what is used
-type SearchResult struct {
+// SearchIllustResult struct contains only what is used
+type SearchIllustResult struct {
 	Error   *ErrorRes `json:"error"`
 	Illusts []Illust  `json:"illusts"`
 	NextURL string    `json:"next_url"`
 }
 
-// struct contains only what is used
+// PopularPreviewResult struct contains only what is used
+type PopularPreviewResult struct {
+	Error   *ErrorRes `json:"error"`
+	Illusts []Illust  `json:"illusts"`
+}
+
+// Illust struct contains only what is used
 type Illust struct {
 	ID             uint64     `json:"id"`
 	Title          string     `json:"title"`
@@ -39,7 +46,7 @@ type Illust struct {
 	TotalBookmarks int        `json:"total_bookmarks"`
 }
 
-// struct contains only what is used
+// ImageURLs struct contains only what is used
 type ImageURLs struct {
 	SquareMedium string `json:"square_medium"`
 }
@@ -53,21 +60,16 @@ type AutocompleteSuggestions struct {
 	TranslatedName string `json:"translated_name"`
 }
 
-func (client *Client) SearchApi(params *SearchParameters) (*SearchResult, error) {
-	if err := client.RefreshIfExpired(); err != nil {
-		return nil, err
-	}
-
-	request, _ := http.NewRequest("GET", searchApiURL, nil)
+func (client *Client) SearchIllust(params *SearchParameters) (*SearchIllustResult, error) {
+	request, _ := http.NewRequest("GET", illustURL, nil)
 	request.URL.RawQuery = params.toURLEncodedParams()
-	request.Header.Set("Authorization", "Bearer "+client.accessToken)
 
-	response, err := client.httpClient.Do(request)
+	response, err := client.Send(request)
 	if err != nil {
 		return nil, err
 	}
 
-	searchResult := &SearchResult{}
+	searchResult := &SearchIllustResult{}
 	if err = unmarshalJSONFromResponse(response, searchResult); err != nil {
 		return searchResult, err
 	}
@@ -79,11 +81,11 @@ func (client *Client) SearchApi(params *SearchParameters) (*SearchResult, error)
 	return searchResult, nil
 }
 
-func (client *Client) SearchBatch(numResults int, params *SearchParameters) ([]Illust, error) {
+func (client *Client) SearchIllustBatch(numResults int, params *SearchParameters) ([]Illust, error) {
 	var illusts []Illust
 
 	for numResults > 0 {
-		results, err := client.SearchApi(params)
+		results, err := client.SearchIllust(params)
 		if err != nil {
 			return illusts, err
 		}
@@ -106,25 +108,41 @@ func GetSearchOffsetFromURL(URL string) int {
 	return offset
 }
 
-func (client *Client) GetAutocompleteResponse(word string) (*http.Response, error) {
-	if err := client.RefreshIfExpired(); err != nil {
+func (client *Client) SearchPopularPreview(params *SearchParameters) (*PopularPreviewResult, error) {
+	request, _ := http.NewRequest("GET", popularPreviewURL, nil)
+	request.URL.RawQuery = params.toURLEncodedParams()
+
+	response, err := client.Send(request)
+	if err != nil {
 		return nil, err
 	}
 
-	request, _ := http.NewRequest("GET", autocompleteURL, nil)
-	request.URL.RawQuery = "word=" + word
-	request.Header.Set("Authorization", "Bearer "+client.accessToken)
-	request.Header.Set("Accept-Language", "en-US")
+	popularPreviewResult := &PopularPreviewResult{}
+	if err = unmarshalJSONFromResponse(response, popularPreviewResult); err != nil {
+		return popularPreviewResult, err
+	}
 
-	return client.httpClient.Do(request)
+	if popularPreviewResult.Error != nil {
+		return popularPreviewResult, errors.New(popularPreviewResult.Error.Message)
+	}
+
+	return popularPreviewResult, nil
 }
 
-func (client *Client) GetAutocompleteSuggestions(word string) ([]AutocompleteSuggestions, error) {
+func (client *Client) SearchAutocompleteResponse(word string) (*http.Response, error) {
+	request, _ := http.NewRequest("GET", autocompleteURL, nil)
+	request.URL.RawQuery = "word=" + word
+	request.Header.Set("Accept-Language", "en-US")
+
+	return client.Send(request)
+}
+
+func (client *Client) SearchAutocomplete(word string) ([]AutocompleteSuggestions, error) {
 	if word == "" {
 		return nil, parameterError("word", word)
 	}
 
-	response, err := client.GetAutocompleteResponse(word)
+	response, err := client.SearchAutocompleteResponse(word)
 	if err != nil {
 		return nil, err
 	}

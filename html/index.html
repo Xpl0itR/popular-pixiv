@@ -148,6 +148,10 @@
                 <input type="number" id="num" name="num" min="30" step="30" placeholder="30" value="30">
             </div>
             <div>
+                <label for="exclude_ai">Exclude AI generated results</label>
+                <input type="checkbox" id="exclude_ai" name="exclude_ai" value="true">
+            </div>
+            <div>
                 <label for="blur_r18">Blur R-18 previews</label>
                 <input type="checkbox" id="blur_r18" name="blur_r18" value="true">
             </div>
@@ -158,22 +162,32 @@
 {{if .IsSearchPage}}
 <br>
 <div id="content-box">
-    <label>Retrieved {{.NumResults}} results in {{.TimeElapsed}}</label><br>
-    {{range .Result}}
-    <a href="https://www.pixiv.net/en/artworks/{{.ID}}">
-        <img alt="{{.Title}}"
-             width="268"
-             height="268"
-             {{if $.Redirect}}
-                 src="/redirect?destination={{.ImageURLs.SquareMedium}}"
-             {{else}}
-                 src="{{.ImageURLs.SquareMedium}}"
-             {{end}}
-             {{if and ($.BlurR18) (.XRestrict)}}
-                 class="blurred"
-             {{end}}
-        />
-    </a>
+    {{range $i, $illusts := .Result}}
+        {{if eq $i 0}}
+        <label>View up to 30 popular works</label>
+        <br>
+        {{else}}
+        <br>
+        <br>
+        <label>Retrieved {{$.NumResults}} results in {{$.TimeElapsed}}</label>
+        <br>
+        {{end}}
+        {{range $illusts}}
+        <a href="https://www.pixiv.net/en/artworks/{{.ID}}">
+            <img alt="{{.Title}}"
+                width="268"
+                height="268"
+                {{if $.Redirect}}
+                    src="/redirect?destination={{.ImageURLs.SquareMedium}}"
+                {{else}}
+                    src="{{.ImageURLs.SquareMedium}}"
+                {{end}}
+                {{if and ($.BlurR18) (.XRestrict)}}
+                    class="blurred"
+                {{end}}
+            />
+        </a>
+        {{end}}
     {{end}}
 </div>
 {{end}}

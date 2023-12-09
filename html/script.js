@@ -176,6 +176,10 @@ document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("num").value = num;
     }
 
+    if (URL_PARAMS.get("exclude_ai") === "true") {
+        document.getElementById("exclude_ai").checked = true;
+    }
+
     if (URL_PARAMS.get("blur_r18") === "true") {
         document.getElementById("blur_r18").checked = true;
     }

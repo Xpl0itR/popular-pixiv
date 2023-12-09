@@ -11,9 +11,10 @@ import (
 )
 
 const (
+	oAuthURL     = "https://oauth.secure.pixiv.net/auth/token"
 	clientID     = "MOBrBDS8blbauoSck0ZfDbtuzpyT"
 	clientSecret = "lsACyCD94FhDUtGTXi3QzcFE2uU1hqtDaKeqrdwj"
-	oAuthURL     = "https://oauth.secure.pixiv.net/auth/token"
+	grantRefresh = "refresh_token"
 )
 
 type Client struct {
@@ -47,6 +48,24 @@ func NewClient(refreshToken string) (*Client, error) {
 	return &client, nil
 }
 
+func (client *Client) Send(request *http.Request) (*http.Response, error) {
+	if err := client.RefreshIfExpired(); err != nil {
+		return nil, err
+	}
+	request.Header.Set("Authorization", "Bearer "+client.accessToken)
+
+	res, err := client.httpClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode != 200 {
+		return nil, errors.New(res.Status)
+	}
+
+	return res, err
+}
+
 func (client *Client) RefreshIfExpired() error {
 	// If the token is not expired we do nothing
 	if time.Now().Before(client.tokenExpires) {
@@ -78,7 +97,7 @@ func (client *Client) refreshTokens() error {
 		"client_id":     {clientID},
 		"client_secret": {clientSecret},
 		"refresh_token": {client.refreshToken},
-		"grant_type":    {"refresh_token"},
+		"grant_type":    {grantRefresh},
 	})
 	if err != nil {
 		return err
