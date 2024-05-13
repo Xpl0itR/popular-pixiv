@@ -15,6 +15,6 @@ buildGoModule rec {
     sha256 = "1a8mgxji00dk47avmvkx3qa2gq9fpj82816ff8r0z614p36k2pip";
   };
 
-  vendorSha256 = null;
-  postInstall  = "cp -r html $out";
+  vendorHash = null;
+  postInstall = "cp -r html $out";
 }
